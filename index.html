@@ -265,13 +265,39 @@
   }
 
   // ── Speech ──
+  let speechUnlocked = false;
+
+  // Mobile browsers require a user-gesture to unlock speechSynthesis.
+  // We fire a silent utterance on the very first tap/click.
+  function unlockSpeech() {
+    if (speechUnlocked || !window.speechSynthesis) return;
+    speechUnlocked = true;
+    const u = new SpeechSynthesisUtterance('');
+    u.volume = 0;
+    u.lang = 'pt-BR';
+    window.speechSynthesis.speak(u);
+  }
+
+  document.addEventListener('touchstart', unlockSpeech, { once: true });
+  document.addEventListener('click', unlockSpeech, { once: true });
+
+  // iOS pauses the synth after ~15s of silence; keep it alive.
+  setInterval(function () {
+    if (window.speechSynthesis && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  }, 5000);
+
   function speak(text) {
     if (!text || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'pt-BR';
-    u.rate = 0.9;
-    window.speechSynthesis.speak(u);
+    // Small delay after cancel — some mobile engines need it
+    setTimeout(function () {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'pt-BR';
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    }, 50);
   }
 
   // ── Sound effect (ascending chime) ──
