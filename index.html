@@ -143,6 +143,21 @@
     color: #ccc;
     font-weight: 700;
   }
+
+  /* ── Debug panel ── */
+  #debug-toggle {
+    position: fixed; bottom: 60px; right: 8px; z-index: 9999;
+    background: #333; color: #0f0; border: none; border-radius: 4px;
+    font: 11px monospace; padding: 3px 7px; opacity: 0.7;
+  }
+  #debug-panel {
+    display: none;
+    position: fixed; bottom: 88px; right: 8px; left: 8px; z-index: 9998;
+    background: rgba(0,0,0,0.88); color: #0f0; border-radius: 6px;
+    font: 11px/1.5 monospace; padding: 10px; max-height: 45vh;
+    overflow-y: auto; word-break: break-all;
+  }
+  #debug-panel.open { display: block; }
 </style>
 </head>
 <body>
@@ -161,6 +176,9 @@
     <button class="nav-btn" id="btn-next" aria-label="Next page">&#9654;</button>
   </div>
 </div>
+
+<button id="debug-toggle">TTS debug</button>
+<div id="debug-panel"></div>
 
 <script>
 (function () {
@@ -514,6 +532,62 @@
     render();
     focusInput();
   });
+
+  // ── Debug panel ──
+  var debugPanel = document.getElementById('debug-panel');
+  var debugToggle = document.getElementById('debug-toggle');
+  var debugLog = [];
+
+  function dbg(msg) {
+    var ts = new Date().toLocaleTimeString();
+    debugLog.push(ts + ' ' + msg);
+    if (debugLog.length > 60) debugLog.shift();
+    debugPanel.innerHTML = debugLog.join('<br>');
+    debugPanel.scrollTop = debugPanel.scrollHeight;
+  }
+
+  debugToggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    debugPanel.classList.toggle('open');
+    // Show initial diagnostics when first opened
+    if (debugPanel.classList.contains('open') && debugLog.length === 0) {
+      dbg('speechSynthesis: ' + (window.speechSynthesis ? 'YES' : 'NO'));
+      dbg('unlocked: ' + speechUnlocked);
+      var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      dbg('voices count: ' + voices.length);
+      for (var i = 0; i < Math.min(voices.length, 10); i++) {
+        dbg('  voice[' + i + ']: ' + voices[i].name + ' (' + voices[i].lang + ')');
+      }
+      if (voices.length > 10) dbg('  ... and ' + (voices.length - 10) + ' more');
+      dbg('ptVoice: ' + (ptVoice ? ptVoice.name + ' (' + ptVoice.lang + ')' : 'NONE'));
+    }
+  });
+
+  // Patch speak() to add logging
+  var _origSpeak = speak;
+  speak = function (text) {
+    dbg('speak("' + text + '") called');
+    dbg('  synth.speaking=' + window.speechSynthesis.speaking +
+        ' pending=' + window.speechSynthesis.pending +
+        ' paused=' + window.speechSynthesis.paused);
+    dbg('  unlocked=' + speechUnlocked + ' ptVoice=' + (ptVoice ? ptVoice.name : 'NONE'));
+    _origSpeak(text);
+    // Check state right after
+    setTimeout(function () {
+      dbg('  after: speaking=' + window.speechSynthesis.speaking +
+          ' pending=' + window.speechSynthesis.pending);
+    }, 100);
+  };
+
+  // Patch unlockSpeech to log
+  var _origUnlock = unlockSpeech;
+  unlockSpeech = function () {
+    dbg('unlockSpeech() fired');
+    _origUnlock();
+    dbg('  unlocked=' + speechUnlocked);
+  };
+  // Re-bind listeners (old ones point to original fn, these add logging)
+  document.addEventListener('touchstart', function () { if (!speechUnlocked) unlockSpeech(); }, { once: false });
 
   // ── Init ──
   loadState();
