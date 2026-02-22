@@ -265,39 +265,63 @@
   }
 
   // ── Speech ──
+  // Mobile browsers (especially iOS Safari) block speechSynthesis until
+  // a user gesture calls .speak().  We unlock it on the first tap and
+  // keep iOS from auto-pausing the engine after ~15 s of silence.
   let speechUnlocked = false;
+  let ptVoice = null;
 
-  // Mobile browsers require a user-gesture to unlock speechSynthesis.
-  // We fire a silent utterance on the very first tap/click.
+  function pickVoice() {
+    if (ptVoice) return;
+    var voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang && voices[i].lang.replace('_', '-').indexOf('pt') === 0) {
+        ptVoice = voices[i];
+        break;
+      }
+    }
+  }
+
+  if (window.speechSynthesis) {
+    pickVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  }
+
   function unlockSpeech() {
     if (speechUnlocked || !window.speechSynthesis) return;
     speechUnlocked = true;
-    const u = new SpeechSynthesisUtterance('');
-    u.volume = 0;
+    pickVoice();
+    var u = new SpeechSynthesisUtterance(' ');
     u.lang = 'pt-BR';
+    if (ptVoice) u.voice = ptVoice;
+    u.volume = 0.01;
     window.speechSynthesis.speak(u);
   }
 
   document.addEventListener('touchstart', unlockSpeech, { once: true });
-  document.addEventListener('click', unlockSpeech, { once: true });
+  document.addEventListener('mousedown', unlockSpeech, { once: true });
 
-  // iOS pauses the synth after ~15s of silence; keep it alive.
+  // iOS pauses the synth after ~15 s of silence; keep it alive.
   setInterval(function () {
-    if (window.speechSynthesis && window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
+    if (window.speechSynthesis) {
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     }
   }, 5000);
 
   function speak(text) {
     if (!text || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    // Small delay after cancel — some mobile engines need it
-    setTimeout(function () {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'pt-BR';
-      u.rate = 0.9;
-      window.speechSynthesis.speak(u);
-    }, 50);
+    pickVoice();
+    // On iOS, cancel() + speak() in the same tick silently fails.
+    // Skip cancel for short utterances (single letters); for longer
+    // text only cancel if something is currently playing.
+    if (text.length > 1 && window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = 'pt-BR';
+    if (ptVoice) u.voice = ptVoice;
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
   }
 
   // ── Sound effect (ascending chime) ──
@@ -363,13 +387,19 @@
     pages[currentPage] = (pages[currentPage] || '') + upper;
     saveState();
     render();
-    speak(pages[currentPage].trim());
+    speak(upper);
   }
 
   function handleSpace() {
     const text = pages[currentPage] || '';
     // Don't add space if empty or already ends with space
     if (!text || text.endsWith(' ')) return;
+
+    // Speak the completed word
+    var trimmed = text.trimEnd();
+    var lastSpace = trimmed.lastIndexOf(' ');
+    var word = lastSpace >= 0 ? trimmed.slice(lastSpace + 1) : trimmed;
+    if (word) speak(word);
 
     // Trigger animation on the just-completed word before adding space
     animateWordCompletion();
