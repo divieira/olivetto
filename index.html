@@ -594,7 +594,14 @@
   }
 
   // ── Speech ──
+  // Native Web Speech API with automatic fallback to Google Translate TTS
+  // for browsers where speechSynthesis exists but silently fails (e.g. Chrome Android).
   var ptVoice = null;
+  var useFallbackTTS = false;
+  var nativeTTSConfirmed = false;
+  var firstSpeakTime = 0;
+  var fallbackAudio = null;
+  var fallbackTimer = null;
 
   function pickVoice() {
     var voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
@@ -639,10 +646,28 @@
   if (window.speechSynthesis) {
     pickVoice();
     window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
+    // If no voices load within 3 seconds, preemptively enable fallback
+    setTimeout(function () {
+      if (!nativeTTSConfirmed && !useFallbackTTS) {
+        var voices = window.speechSynthesis.getVoices();
+        if (!voices || voices.length === 0) {
+          useFallbackTTS = true;
+        }
+      }
+    }, 3000);
+  } else {
+    // No speechSynthesis at all — go straight to fallback
+    useFallbackTTS = true;
   }
 
   function speak(text) {
-    if (!text || !window.speechSynthesis) return;
+    if (!text) return;
+
+    if (useFallbackTTS) {
+      speakFallback(text);
+      return;
+    }
+
     window.speechSynthesis.cancel();
     pickVoice();
     var u = new SpeechSynthesisUtterance(fixPronunciation(text.toLowerCase()));
@@ -650,7 +675,51 @@
     if (ptVoice) u.voice = ptVoice;
     u.rate = 0.65;
     u.pitch = 1.1;
+
+    // Detect whether native TTS is actually producing audio.
+    // On some browsers (notably Chrome Android), speechSynthesis exists
+    // but speak() silently does nothing. We track onstart across calls
+    // and switch to the audio fallback if it never fires.
+    if (!nativeTTSConfirmed) {
+      if (!firstSpeakTime) firstSpeakTime = Date.now();
+
+      u.onstart = function () { nativeTTSConfirmed = true; };
+      u.onerror = function () {
+        if (!nativeTTSConfirmed) {
+          useFallbackTTS = true;
+          speakFallback(text);
+        }
+      };
+
+      // After 2 seconds of attempts with no onstart, switch to fallback
+      if (Date.now() - firstSpeakTime > 2000) {
+        useFallbackTTS = true;
+        speakFallback(text);
+        return;
+      }
+    }
+
     window.speechSynthesis.speak(u);
+  }
+
+  function speakFallback(text) {
+    if (!text) return;
+    // Debounce rapid keystrokes to avoid excessive network requests.
+    // After 250 ms of silence the most recent text is spoken via audio.
+    if (fallbackTimer) clearTimeout(fallbackTimer);
+    fallbackTimer = setTimeout(function () {
+      try {
+        if (fallbackAudio) {
+          fallbackAudio.pause();
+          fallbackAudio = null;
+        }
+        var processed = fixPronunciation(text.toLowerCase());
+        var url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=pt-BR&client=tw-ob&q='
+          + encodeURIComponent(processed);
+        fallbackAudio = new Audio(url);
+        fallbackAudio.play().catch(function () {});
+      } catch (e) {}
+    }, 250);
   }
 
   // ── Sound effect (ascending chime) ──
