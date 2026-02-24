@@ -199,6 +199,34 @@
 
   const STORAGE_KEY = 'olivetto';
 
+  // ── TTS pronunciation overrides ──
+  // Applied to the lowercased text right before speaking so the
+  // speech engine reads syllables/words correctly in pt-BR.
+
+  // Word-level overrides (exact whole-word match, case-insensitive)
+  const TTS_WORD_FIXES = {
+    'mami':   'mámi',
+    'oliver': 'olliver',
+  };
+
+  // Syllable-level overrides (substring replacements)
+  const TTS_FIXES = [
+    [/te/gi, 'tê'],
+    [/ci/gi, 'si'],
+  ];
+
+  function fixPronunciation(text) {
+    // Word-level replacements first
+    var t = text.replace(/\S+/g, function (w) {
+      return TTS_WORD_FIXES[w] || w;
+    });
+    // Then syllable-level
+    for (var i = 0; i < TTS_FIXES.length; i++) {
+      t = t.replace(TTS_FIXES[i][0], TTS_FIXES[i][1]);
+    }
+    return t;
+  }
+
   // ── State ──
   let pages, currentPage, currentColor;
 
@@ -333,7 +361,8 @@
     window.speechSynthesis.cancel();
     pickVoice();
     // Send as lowercase so TTS reads phonetically (e.g. "to" not "Tocantins")
-    var u = new SpeechSynthesisUtterance(text.toLowerCase());
+    // Then apply pronunciation overrides for syllables the engine gets wrong.
+    var u = new SpeechSynthesisUtterance(fixPronunciation(text.toLowerCase()));
     u.lang = 'pt-BR';
     if (ptVoice) u.voice = ptVoice;
     u.rate = 0.65;
