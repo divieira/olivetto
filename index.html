@@ -52,22 +52,25 @@
   #writing-area {
     flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     padding: 20px;
     cursor: text;
     position: relative;
+    overflow-y: auto;
   }
 
   #text-display {
-    font-size: min(18vw, 120px);
+    font-size: min(14vw, 80px);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    text-align: center;
-    word-break: break-all;
-    line-height: 1.2;
+    text-align: left;
+    word-break: break-word;
+    white-space: pre-wrap;
+    line-height: 1.3;
     color: #000;
+    width: 100%;
   }
 
   #text-display .letter {
@@ -144,20 +147,19 @@
     font-weight: 700;
   }
 
-  /* ── Debug panel ── */
-  #debug-toggle {
-    position: fixed; bottom: 60px; right: 8px; z-index: 9999;
-    background: #333; color: #0f0; border: none; border-radius: 4px;
-    font: 11px monospace; padding: 3px 7px; opacity: 0.7;
+  #btn-new-page {
+    font-size: 22px;
+    background: none;
+    border: 2px solid #ddd;
+    cursor: pointer;
+    color: #bbb;
+    padding: 4px 12px;
+    border-radius: 10px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    font-family: 'Nunito', sans-serif;
+    line-height: 1;
   }
-  #debug-panel {
-    display: none;
-    position: fixed; bottom: 88px; right: 8px; left: 8px; z-index: 9998;
-    background: rgba(0,0,0,0.88); color: #0f0; border-radius: 6px;
-    font: 11px/1.5 monospace; padding: 10px; max-height: 45vh;
-    overflow-y: auto; word-break: break-all;
-  }
-  #debug-panel.open { display: block; }
+  #btn-new-page:hover { color: #888; background: #f0f0f0; border-color: #bbb; }
 </style>
 </head>
 <body>
@@ -173,12 +175,10 @@
   <div id="nav-bar">
     <button class="nav-btn" id="btn-prev" aria-label="Previous page">&#9664;</button>
     <span id="page-indicator"></span>
+    <button id="btn-new-page" aria-label="New page">+</button>
     <button class="nav-btn" id="btn-next" aria-label="Next page">&#9654;</button>
   </div>
 </div>
-
-<button id="debug-toggle">TTS debug</button>
-<div id="debug-panel"></div>
 
 <script>
 (function () {
@@ -194,7 +194,6 @@
     { name: 'black',  hex: '#222222' },
   ];
 
-  const ALLOWED = /^[A-ZÀÁÂÃÇÉÊÍÓÔÕÚa-zàáâãçéêíóôõú]$/;
   const STORAGE_KEY = 'olivetto';
 
   // ── State ──
@@ -235,6 +234,7 @@
   const colorBar = document.getElementById('color-bar');
   const btnPrev = document.getElementById('btn-prev');
   const btnNext = document.getElementById('btn-next');
+  const btnNewPage = document.getElementById('btn-new-page');
   const pageIndicator = document.getElementById('page-indicator');
   const writingArea = document.getElementById('writing-area');
 
@@ -242,11 +242,13 @@
   function render() {
     const text = pages[currentPage] || '';
 
-    // Build letter spans
+    // Build letter spans, preserving newlines
     let html = '';
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
-      if (ch === ' ') {
+      if (ch === '\n') {
+        html += '<br>';
+      } else if (ch === ' ') {
         html += ' ';
       } else {
         html += '<span class="letter">' + ch + '</span>';
@@ -259,7 +261,11 @@
 
     // Nav
     btnPrev.disabled = currentPage === 0;
+    btnNext.disabled = currentPage >= pages.length - 1;
     pageIndicator.textContent = (currentPage + 1) + ' / ' + pages.length;
+
+    // Scroll to bottom of writing area
+    writingArea.scrollTop = writingArea.scrollHeight;
   }
 
   // ── Color bar ──
@@ -283,21 +289,43 @@
   }
 
   // ── Speech ──
-  // Mobile browsers (especially iOS Safari) block speechSynthesis until
-  // a user gesture calls .speak().  We unlock it on the first tap and
-  // keep iOS from auto-pausing the engine after ~15 s of silence.
-  let speechUnlocked = false;
   let ptVoice = null;
 
   function pickVoice() {
-    if (ptVoice) return;
     var voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+    // Prefer natural/premium pt-BR voices
+    var candidates = [];
     for (var i = 0; i < voices.length; i++) {
-      if (voices[i].lang && voices[i].lang.replace('_', '-').indexOf('pt') === 0) {
-        ptVoice = voices[i];
-        break;
+      var lang = (voices[i].lang || '').replace('_', '-');
+      if (lang.indexOf('pt-BR') === 0 || lang === 'pt-BR') {
+        candidates.push(voices[i]);
       }
     }
+    // If no pt-BR, try any pt voice
+    if (candidates.length === 0) {
+      for (var i = 0; i < voices.length; i++) {
+        var lang = (voices[i].lang || '').replace('_', '-');
+        if (lang.indexOf('pt') === 0) {
+          candidates.push(voices[i]);
+        }
+      }
+    }
+    if (candidates.length === 0) return;
+
+    // Prefer voices with "natural", "premium", "enhanced", or "female" in name
+    var preferred = null;
+    var prefKeywords = ['natural', 'premium', 'enhanced', 'wavenet', 'neural'];
+    for (var i = 0; i < candidates.length; i++) {
+      var name = candidates[i].name.toLowerCase();
+      for (var k = 0; k < prefKeywords.length; k++) {
+        if (name.indexOf(prefKeywords[k]) !== -1) {
+          preferred = candidates[i];
+          break;
+        }
+      }
+      if (preferred) break;
+    }
+    ptVoice = preferred || candidates[0];
   }
 
   if (window.speechSynthesis) {
@@ -305,40 +333,16 @@
     window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
   }
 
-  function unlockSpeech() {
-    if (speechUnlocked || !window.speechSynthesis) return;
-    speechUnlocked = true;
-    pickVoice();
-    var u = new SpeechSynthesisUtterance(' ');
-    u.lang = 'pt-BR';
-    if (ptVoice) u.voice = ptVoice;
-    u.volume = 0.01;
-    window.speechSynthesis.speak(u);
-  }
-
-  document.addEventListener('touchstart', unlockSpeech, { once: true });
-  document.addEventListener('mousedown', unlockSpeech, { once: true });
-
-  // iOS pauses the synth after ~15 s of silence; keep it alive.
-  setInterval(function () {
-    if (window.speechSynthesis) {
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    }
-  }, 5000);
-
   function speak(text) {
     if (!text || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
     pickVoice();
-    // On iOS, cancel() + speak() in the same tick silently fails.
-    // Skip cancel for short utterances (single letters); for longer
-    // text only cancel if something is currently playing.
-    if (text.length > 1 && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-    var u = new SpeechSynthesisUtterance(text);
+    // Send as lowercase so TTS reads phonetically (e.g. "to" not "Tocantins")
+    var u = new SpeechSynthesisUtterance(text.toLowerCase());
     u.lang = 'pt-BR';
     if (ptVoice) u.voice = ptVoice;
-    u.rate = 0.9;
+    u.rate = 0.65;
+    u.pitch = 1.1;
     window.speechSynthesis.speak(u);
   }
 
@@ -372,17 +376,16 @@
   // ── Word completion animation ──
   function animateWordCompletion() {
     const text = pages[currentPage] || '';
-    // Find the last word (before trailing space)
-    const trimmed = text.trimEnd();
-    const lastSpace = trimmed.lastIndexOf(' ');
-    const wordStart = lastSpace + 1;
+    // Find the last word (before trailing space/newline)
+    const trimmed = text.replace(/[\s]+$/, '');
+    const lastBreak = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
+    const wordStart = lastBreak + 1;
     const wordLen = trimmed.length - wordStart;
 
     if (wordLen === 0) return;
 
     // Get all letter spans
     const letters = textDisplay.querySelectorAll('.letter');
-    // The word letters are the last `wordLen` letter-spans (not counting spaces)
     let letterSpans = [];
     for (let i = letters.length - wordLen; i < letters.length; i++) {
       if (letters[i]) letterSpans.push(letters[i]);
@@ -399,24 +402,33 @@
     });
   }
 
+  // ── Get current word being typed ──
+  function getCurrentWord() {
+    var text = pages[currentPage] || '';
+    if (!text) return '';
+    // Find last space or newline
+    var lastBreak = Math.max(text.lastIndexOf(' '), text.lastIndexOf('\n'));
+    return text.substring(lastBreak + 1);
+  }
+
   // ── Typing logic ──
   function handleChar(ch) {
     const upper = ch.toUpperCase();
     pages[currentPage] = (pages[currentPage] || '') + upper;
     saveState();
     render();
-    speak(upper);
+    // Speak only the current word being typed
+    var word = getCurrentWord();
+    if (word) speak(word);
   }
 
   function handleSpace() {
     const text = pages[currentPage] || '';
-    // Don't add space if empty or already ends with space
-    if (!text || text.endsWith(' ')) return;
+    // Don't add space if empty or already ends with whitespace
+    if (!text || text.endsWith(' ') || text.endsWith('\n')) return;
 
     // Speak the completed word
-    var trimmed = text.trimEnd();
-    var lastSpace = trimmed.lastIndexOf(' ');
-    var word = lastSpace >= 0 ? trimmed.slice(lastSpace + 1) : trimmed;
+    var word = getCurrentWord();
     if (word) speak(word);
 
     // Trigger animation on the just-completed word before adding space
@@ -435,30 +447,25 @@
     pages[currentPage] = text.slice(0, -1);
     saveState();
     render();
-    const remaining = pages[currentPage].trim();
-    if (remaining) speak(remaining);
+    var word = getCurrentWord();
+    if (word) speak(word);
   }
 
   function handleEnter() {
     const text = pages[currentPage] || '';
+    // Speak last word if any
+    var word = getCurrentWord();
+    if (word) speak(word);
+
     // Animate last word if there's text
-    if (text.trim()) {
+    if (text.replace(/\s/g, '')) {
       animateWordCompletion();
     }
-    // Create new page after a short delay so animation plays
-    setTimeout(function () {
-      // Only add new page if current has content, or we're at the last page
-      if (currentPage === pages.length - 1) {
-        pages.push('');
-      }
-      currentPage = currentPage + 1;
-      // If next page doesn't exist yet, make it
-      if (currentPage >= pages.length) {
-        pages.push('');
-      }
-      saveState();
-      render();
-    }, text.trim() ? 400 : 0);
+
+    // Add newline to current page
+    pages[currentPage] = (pages[currentPage] || '') + '\n';
+    saveState();
+    render();
   }
 
   // ── Keyboard handling ──
@@ -476,7 +483,8 @@
     } else if (e.key === ' ') {
       e.preventDefault();
       handleSpace();
-    } else if (ALLOWED.test(e.key)) {
+    } else if (e.key.length === 1) {
+      // Allow any printable character
       e.preventDefault();
       handleChar(e.key);
     }
@@ -490,9 +498,11 @@
 
     for (let i = 0; i < val.length; i++) {
       const ch = val[i];
-      if (ch === ' ') {
+      if (ch === '\n') {
+        handleEnter();
+      } else if (ch === ' ') {
         handleSpace();
-      } else if (ALLOWED.test(ch)) {
+      } else {
         handleChar(ch);
       }
     }
@@ -524,70 +534,20 @@
     e.stopPropagation();
     if (currentPage < pages.length - 1) {
       currentPage++;
-    } else {
-      pages.push('');
-      currentPage = pages.length - 1;
+      saveState();
+      render();
     }
+    focusInput();
+  });
+
+  btnNewPage.addEventListener('click', function (e) {
+    e.stopPropagation();
+    pages.push('');
+    currentPage = pages.length - 1;
     saveState();
     render();
     focusInput();
   });
-
-  // ── Debug panel ──
-  var debugPanel = document.getElementById('debug-panel');
-  var debugToggle = document.getElementById('debug-toggle');
-  var debugLog = [];
-
-  function dbg(msg) {
-    var ts = new Date().toLocaleTimeString();
-    debugLog.push(ts + ' ' + msg);
-    if (debugLog.length > 60) debugLog.shift();
-    debugPanel.innerHTML = debugLog.join('<br>');
-    debugPanel.scrollTop = debugPanel.scrollHeight;
-  }
-
-  debugToggle.addEventListener('click', function (e) {
-    e.stopPropagation();
-    debugPanel.classList.toggle('open');
-    // Show initial diagnostics when first opened
-    if (debugPanel.classList.contains('open') && debugLog.length === 0) {
-      dbg('speechSynthesis: ' + (window.speechSynthesis ? 'YES' : 'NO'));
-      dbg('unlocked: ' + speechUnlocked);
-      var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-      dbg('voices count: ' + voices.length);
-      for (var i = 0; i < Math.min(voices.length, 10); i++) {
-        dbg('  voice[' + i + ']: ' + voices[i].name + ' (' + voices[i].lang + ')');
-      }
-      if (voices.length > 10) dbg('  ... and ' + (voices.length - 10) + ' more');
-      dbg('ptVoice: ' + (ptVoice ? ptVoice.name + ' (' + ptVoice.lang + ')' : 'NONE'));
-    }
-  });
-
-  // Patch speak() to add logging
-  var _origSpeak = speak;
-  speak = function (text) {
-    dbg('speak("' + text + '") called');
-    dbg('  synth.speaking=' + window.speechSynthesis.speaking +
-        ' pending=' + window.speechSynthesis.pending +
-        ' paused=' + window.speechSynthesis.paused);
-    dbg('  unlocked=' + speechUnlocked + ' ptVoice=' + (ptVoice ? ptVoice.name : 'NONE'));
-    _origSpeak(text);
-    // Check state right after
-    setTimeout(function () {
-      dbg('  after: speaking=' + window.speechSynthesis.speaking +
-          ' pending=' + window.speechSynthesis.pending);
-    }, 100);
-  };
-
-  // Patch unlockSpeech to log
-  var _origUnlock = unlockSpeech;
-  unlockSpeech = function () {
-    dbg('unlockSpeech() fired');
-    _origUnlock();
-    dbg('  unlocked=' + speechUnlocked);
-  };
-  // Re-bind listeners (old ones point to original fn, these add logging)
-  document.addEventListener('touchstart', function () { if (!speechUnlocked) unlockSpeech(); }, { once: false });
 
   // ── Init ──
   loadState();
