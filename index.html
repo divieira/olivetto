@@ -105,14 +105,17 @@
     50% { opacity: 0; }
   }
 
-  /* ── Hidden input for mobile keyboard ── */
+  /* ── Hidden input for keyboard (dead keys + mobile) ── */
   #hidden-input {
     position: absolute;
-    left: -9999px;
+    left: 0;
     top: 0;
+    width: 100%;
+    height: 100%;
     opacity: 0;
-    width: 1px;
-    height: 1px;
+    font-size: 16px;
+    caret-color: transparent;
+    z-index: 10;
   }
 
   /* ── Navigation ── */
@@ -461,15 +464,29 @@
   }
 
   // ── Keyboard handling ──
-  // Use the hidden input for all character input (supports dead keys / accents).
-  // Document keydown only handles special keys and redirects focus.
-  document.addEventListener('keydown', function (e) {
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // All input goes through the hidden input element so that dead key
+  // composition (ã, é, ç, ô, etc.) works natively via the browser's IME.
+  var composing = false;
 
-    // Redirect focus to hidden input so composition works
-    if (document.activeElement !== hiddenInput) {
-      hiddenInput.focus({ preventScroll: true });
+  hiddenInput.addEventListener('compositionstart', function () {
+    composing = true;
+  });
+
+  hiddenInput.addEventListener('compositionend', function (e) {
+    composing = false;
+    // Process the composed result
+    var val = hiddenInput.value;
+    hiddenInput.value = '';
+    if (val) {
+      for (var i = 0; i < val.length; i++) {
+        handleChar(val[i]);
+      }
     }
+  });
+
+  hiddenInput.addEventListener('keydown', function (e) {
+    if (composing) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     if (e.key === 'Backspace') {
       e.preventDefault();
@@ -481,18 +498,19 @@
       e.preventDefault();
       handleSpace();
     }
-    // All other characters go through the input event via hidden input
-    // Do NOT preventDefault here — it would kill dead key composition
+    // Other keys: let them through to trigger input event (or start composition)
   });
 
-  // Handle composed characters from the hidden input (desktop + mobile)
   hiddenInput.addEventListener('input', function (e) {
-    const val = hiddenInput.value;
+    // Skip if we're in the middle of a dead key composition
+    if (composing) return;
+
+    var val = hiddenInput.value;
     hiddenInput.value = '';
     if (!val) return;
 
-    for (let i = 0; i < val.length; i++) {
-      const ch = val[i];
+    for (var i = 0; i < val.length; i++) {
+      var ch = val[i];
       if (ch === '\n') {
         handleEnter();
       } else if (ch === ' ') {
@@ -503,10 +521,17 @@
     }
   });
 
-  // Keep input focused for mobile keyboard
+  // Keep input focused so all keystrokes go to it
   function focusInput() {
     hiddenInput.focus({ preventScroll: true });
   }
+
+  // Redirect any stray keystrokes to the hidden input
+  document.addEventListener('keydown', function (e) {
+    if (document.activeElement !== hiddenInput) {
+      focusInput();
+    }
+  });
 
   writingArea.addEventListener('click', focusInput);
   writingArea.addEventListener('touchend', function (e) {
