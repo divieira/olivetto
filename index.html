@@ -24,8 +24,8 @@
   #app {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
     height: 100vh;
+    height: 100dvh;
     position: relative;
   }
 
@@ -341,6 +341,13 @@
     font-weight: 700;
   }
   #settings-reset:hover { background: #eee; border-color: #ccc; color: #666; }
+
+  /* Allow text editing inside settings inputs */
+  #settings-panel input,
+  #settings-panel select {
+    user-select: text;
+    -webkit-user-select: text;
+  }
 </style>
 </head>
 <body>
@@ -426,10 +433,17 @@
   var ttsWordFixes = {};
   var selectedVoiceName = null;
 
+  function escapeHtml(ch) {
+    if (ch === '<') return '&lt;';
+    if (ch === '>') return '&gt;';
+    if (ch === '&') return '&amp;';
+    return ch;
+  }
+
   function fixPronunciation(text) {
     return text.replace(/\S+/g, function (w) {
-      // User dictionary takes precedence
-      if (ttsWordFixes[w]) return ttsWordFixes[w];
+      // User dictionary takes precedence (hasOwnProperty guards against prototype keys)
+      if (ttsWordFixes.hasOwnProperty(w)) return ttsWordFixes[w];
       // Auto-fix: 2-char consonant+vowel syllables
       if (w.length === 2 && CONSONANTS.indexOf(w[0]) >= 0 && VOWEL_MAP[w[1]]) {
         return w[0] + VOWEL_MAP[w[1]];
@@ -539,7 +553,7 @@
       } else if (ch === ' ') {
         html += ' ';
       } else {
-        html += '<span class="letter">' + ch + '</span>';
+        html += '<span class="letter">' + escapeHtml(ch) + '</span>';
       }
     }
 
@@ -640,9 +654,19 @@
   }
 
   // ── Sound effect (ascending chime) ──
+  var audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
   function playChime(index) {
     try {
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var ctx = getAudioCtx();
       var baseFreq = 523.25; // C5
       var freq = baseFreq * Math.pow(2, (index * 2) / 12);
 
@@ -658,8 +682,6 @@
 
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.25);
-
-      osc.onended = function () { ctx.close(); };
     } catch (e) {
       // Audio not supported
     }
@@ -787,8 +809,11 @@
   }
 
   // Redirect stray keystrokes (but not when settings is open)
-  document.addEventListener('keydown', function () {
-    if (!settingsOverlay.classList.contains('hidden')) return;
+  document.addEventListener('keydown', function (e) {
+    if (!settingsOverlay.classList.contains('hidden')) {
+      if (e.key === 'Escape') closeSettings();
+      return;
+    }
     if (document.activeElement !== hiddenInput) {
       focusInput();
     }
@@ -949,6 +974,7 @@
   // Stop all keydowns inside settings from reaching the document handler
   document.getElementById('settings-panel').addEventListener('keydown', function (e) {
     e.stopPropagation();
+    if (e.key === 'Escape') closeSettings();
   });
 
   document.getElementById('settings-reset').addEventListener('click', function () {
@@ -997,9 +1023,11 @@
     focusInput();
   });
 
-  // ── Resize handler ──
+  // ── Resize handler (debounced) ──
+  var resizeTimer;
   window.addEventListener('resize', function () {
-    autoFitText();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(autoFitText, 100);
   });
 
   // ── Init ──
