@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Olivetto</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='6' y='30' width='52' height='26' rx='4' fill='%23666'/><rect x='10' y='26' width='44' height='8' rx='2' fill='%23888'/><rect x='16' y='10' width='32' height='20' rx='2' fill='%23f5f5f5' stroke='%23999' stroke-width='1.5'/><line x1='20' y1='18' x2='44' y2='18' stroke='%23ccc' stroke-width='1.5'/><line x1='20' y1='23' x2='38' y2='23' stroke='%23ccc' stroke-width='1.5'/><circle cx='15' cy='38' r='3.5' fill='%23eee'/><circle cx='23' cy='38' r='3.5' fill='%23eee'/><circle cx='31' cy='38' r='3.5' fill='%23eee'/><circle cx='39' cy='38' r='3.5' fill='%23eee'/><circle cx='47' cy='38' r='3.5' fill='%23eee'/><circle cx='19' cy='46' r='3.5' fill='%23ddd'/><circle cx='27' cy='46' r='3.5' fill='%23ddd'/><circle cx='35' cy='46' r='3.5' fill='%23ddd'/><circle cx='43' cy='46' r='3.5' fill='%23ddd'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -25,20 +26,21 @@
     flex-direction: column;
     height: 100dvh;
     height: 100vh;
+    position: relative;
   }
 
   /* ── Color bar ── */
   #color-bar {
     display: flex;
     justify-content: center;
-    gap: 12px;
-    padding: 14px 10px 8px;
+    gap: 14px;
+    padding: 16px 10px 10px;
     flex-shrink: 0;
   }
 
   .color-dot {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 3px solid transparent;
     cursor: pointer;
@@ -48,12 +50,28 @@
   .color-dot:hover { transform: scale(1.15); }
   .color-dot.selected { border-color: #ccc; transform: scale(1.2); }
 
+  /* ── Settings gear ── */
+  #btn-settings {
+    position: absolute;
+    top: 16px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #ccc;
+    cursor: pointer;
+    z-index: 20;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  #btn-settings:hover { color: #888; }
+
   /* ── Main writing area ── */
   #writing-area {
     flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     padding: 20px;
     cursor: text;
     position: relative;
@@ -61,7 +79,7 @@
   }
 
   #text-display {
-    font-size: min(14vw, 80px);
+    font-size: min(20vw, 200px);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -70,7 +88,7 @@
     white-space: pre-wrap;
     line-height: 1.3;
     color: #000;
-    width: 100%;
+    margin: auto 0;
   }
 
   #text-display .letter {
@@ -128,13 +146,13 @@
   }
 
   .nav-btn {
-    font-size: 32px;
+    font-size: 44px;
     background: none;
     border: none;
     cursor: pointer;
     color: #bbb;
-    padding: 8px 16px;
-    border-radius: 12px;
+    padding: 12px 22px;
+    border-radius: 14px;
     transition: color 0.15s, background 0.15s;
     font-family: 'Nunito', sans-serif;
     line-height: 1;
@@ -145,30 +163,191 @@
   .nav-btn:disabled:hover { background: none; color: #bbb; }
 
   #page-indicator {
-    font-size: 14px;
+    font-size: 16px;
     color: #ccc;
     font-weight: 700;
   }
 
   #btn-new-page {
-    font-size: 22px;
+    font-size: 32px;
     background: none;
     border: 2px solid #ddd;
     cursor: pointer;
     color: #bbb;
-    padding: 4px 12px;
-    border-radius: 10px;
+    padding: 8px 18px;
+    border-radius: 12px;
     transition: color 0.15s, background 0.15s, border-color 0.15s;
     font-family: 'Nunito', sans-serif;
     line-height: 1;
   }
   #btn-new-page:hover { color: #888; background: #f0f0f0; border-color: #bbb; }
+
+  /* ── Settings overlay ── */
+  #settings-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #settings-overlay.hidden { display: none; }
+
+  #settings-panel {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    width: min(420px, 90vw);
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .settings-header button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+  .settings-header button:hover { color: #555; }
+
+  .settings-section {
+    margin-bottom: 20px;
+  }
+
+  .settings-section label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #999;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .settings-section select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 15px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    background: #fff;
+  }
+
+  .settings-note {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  #dict-list {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 2px solid #eee;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+
+  .dict-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 15px;
+  }
+  .dict-entry:last-child { border-bottom: none; }
+  .dict-entry .dict-word { font-weight: 700; flex: 1; }
+  .dict-entry .dict-arrow { color: #ccc; flex-shrink: 0; }
+  .dict-entry .dict-pron { flex: 1; color: #666; }
+  .dict-entry button {
+    background: none;
+    border: none;
+    color: #ddd;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 6px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .dict-entry button:hover { color: #e53935; }
+
+  .dict-empty {
+    padding: 12px;
+    text-align: center;
+    color: #ccc;
+    font-size: 14px;
+  }
+
+  .dict-add-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dict-add-row input {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-family: 'Nunito', sans-serif;
+  }
+  .dict-add-row input:focus {
+    outline: none;
+    border-color: #aaa;
+  }
+
+  .dict-add-row button {
+    background: #43A047;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 18px;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .dict-add-row button:hover { background: #388E3C; }
+
+  #settings-reset {
+    width: 100%;
+    padding: 10px;
+    background: #f5f5f5;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    color: #888;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+  }
+  #settings-reset:hover { background: #eee; border-color: #ccc; color: #666; }
 </style>
 </head>
 <body>
 
 <div id="app">
   <div id="color-bar"></div>
+  <button id="btn-settings" aria-label="Configurações">&#9881;</button>
 
   <div id="writing-area">
     <div id="text-display"><span id="cursor"></span></div>
@@ -181,12 +360,42 @@
     <button id="btn-new-page" aria-label="New page">+</button>
     <button class="nav-btn" id="btn-next" aria-label="Next page">&#9654;</button>
   </div>
+
+  <!-- Settings overlay -->
+  <div id="settings-overlay" class="hidden">
+    <div id="settings-panel">
+      <div class="settings-header">
+        <span>Configurações</span>
+        <button id="settings-close" aria-label="Fechar">&#10005;</button>
+      </div>
+
+      <div class="settings-section">
+        <label>Voz</label>
+        <select id="voice-select"></select>
+      </div>
+
+      <div class="settings-section">
+        <label>Dicionário de pronúncia</label>
+        <div class="settings-note">Sílabas básicas (consoante + vogal) são corrigidas automaticamente.</div>
+        <div id="dict-list"></div>
+        <div class="dict-add-row">
+          <input id="dict-word" placeholder="palavra">
+          <input id="dict-pron" placeholder="pronúncia">
+          <button id="dict-add-btn" aria-label="Adicionar">+</button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="margin-bottom:0">
+        <button id="settings-reset">Restaurar padrões</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 (function () {
   // ── Config ──
-  const COLORS = [
+  var COLORS = [
     { name: 'red',    hex: '#E53935' },
     { name: 'green',  hex: '#43A047' },
     { name: 'blue',   hex: '#1E88E5' },
@@ -197,57 +406,65 @@
     { name: 'black',  hex: '#222222' },
   ];
 
-  const STORAGE_KEY = 'olivetto';
+  var STORAGE_KEY = 'olivetto';
 
-  // ── TTS pronunciation overrides ──
-  // Applied to the lowercased text right before speaking so the
-  // speech engine reads syllables/words correctly in pt-BR.
+  // ── TTS pronunciation overrides (word-level only) ──
 
-  // Word-level overrides (exact whole-word match, case-insensitive)
-  const TTS_WORD_FIXES = {
-    'mami':   'mámi',
+  // Auto-generated: consonant+vowel syllables get accent marks so
+  // the TTS reads them as syllables instead of spelling them out.
+  var CONSONANTS = 'bcdfghjklmnpqrstvwxyz';
+  var VOWEL_MAP = { 'a': '\u00e1', 'e': '\u00e9', 'i': '\u00ed', 'o': '\u00f4', 'u': '\u00fa' };
+  // á = \u00e1, é = \u00e9, í = \u00ed, ô = \u00f4, ú = \u00fa
+
+  // Custom word-level overrides (user-editable via settings)
+  var DEFAULT_TTS_WORD_FIXES = {
+    'mami':   'm\u00e1mi',
     'oliver': 'olliver',
+    'tete':   'tet\u00ea',
   };
 
-  // Syllable-level overrides (substring replacements)
-  const TTS_FIXES = [
-    [/te/gi, 'tê'],
-    [/ci/gi, 'si'],
-  ];
+  var ttsWordFixes = {};
+  var selectedVoiceName = null;
 
   function fixPronunciation(text) {
-    // Word-level replacements first
-    var t = text.replace(/\S+/g, function (w) {
-      return TTS_WORD_FIXES[w] || w;
+    return text.replace(/\S+/g, function (w) {
+      // User dictionary takes precedence
+      if (ttsWordFixes[w]) return ttsWordFixes[w];
+      // Auto-fix: 2-char consonant+vowel syllables
+      if (w.length === 2 && CONSONANTS.indexOf(w[0]) >= 0 && VOWEL_MAP[w[1]]) {
+        return w[0] + VOWEL_MAP[w[1]];
+      }
+      return w;
     });
-    // Then syllable-level
-    for (var i = 0; i < TTS_FIXES.length; i++) {
-      t = t.replace(TTS_FIXES[i][0], TTS_FIXES[i][1]);
-    }
-    return t;
   }
 
   // ── State ──
-  let pages, currentPage, currentColor;
+  var pages, currentPage, currentColor;
 
   function loadState() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const s = JSON.parse(raw);
+        var s = JSON.parse(raw);
         pages = s.pages && s.pages.length ? s.pages : [''];
         currentPage = typeof s.currentPage === 'number' ? Math.min(s.currentPage, pages.length - 1) : 0;
         currentColor = s.color || COLORS[7].hex;
+        ttsWordFixes = s.ttsWordFixes || copyObj(DEFAULT_TTS_WORD_FIXES);
+        selectedVoiceName = s.voiceName || null;
       } else {
-        pages = [''];
-        currentPage = 0;
-        currentColor = COLORS[7].hex;
+        resetToDefaults();
       }
-    } catch {
-      pages = [''];
-      currentPage = 0;
-      currentColor = COLORS[7].hex;
+    } catch (e) {
+      resetToDefaults();
     }
+  }
+
+  function resetToDefaults() {
+    pages = pages || [''];
+    currentPage = currentPage || 0;
+    currentColor = COLORS[7].hex;
+    ttsWordFixes = copyObj(DEFAULT_TTS_WORD_FIXES);
+    selectedVoiceName = null;
   }
 
   function saveState() {
@@ -255,28 +472,68 @@
       pages: pages,
       currentPage: currentPage,
       color: currentColor,
+      ttsWordFixes: ttsWordFixes,
+      voiceName: selectedVoiceName,
     }));
   }
 
+  function copyObj(obj) {
+    var r = {};
+    for (var k in obj) r[k] = obj[k];
+    return r;
+  }
+
   // ── DOM refs ──
-  const textDisplay = document.getElementById('text-display');
-  const cursor = document.getElementById('cursor');
-  const hiddenInput = document.getElementById('hidden-input');
-  const colorBar = document.getElementById('color-bar');
-  const btnPrev = document.getElementById('btn-prev');
-  const btnNext = document.getElementById('btn-next');
-  const btnNewPage = document.getElementById('btn-new-page');
-  const pageIndicator = document.getElementById('page-indicator');
-  const writingArea = document.getElementById('writing-area');
+  var textDisplay = document.getElementById('text-display');
+  var cursor = document.getElementById('cursor');
+  var hiddenInput = document.getElementById('hidden-input');
+  var colorBar = document.getElementById('color-bar');
+  var btnPrev = document.getElementById('btn-prev');
+  var btnNext = document.getElementById('btn-next');
+  var btnNewPage = document.getElementById('btn-new-page');
+  var pageIndicator = document.getElementById('page-indicator');
+  var writingArea = document.getElementById('writing-area');
+
+  // ── Auto-fit text size ──
+  function autoFitText() {
+    var maxPx = Math.min(window.innerWidth * 0.20, 200);
+    var minPx = 24;
+    var text = pages[currentPage] || '';
+
+    if (!text) {
+      textDisplay.style.fontSize = maxPx + 'px';
+      return;
+    }
+
+    var available = writingArea.clientHeight;
+
+    // Try max size first
+    textDisplay.style.fontSize = maxPx + 'px';
+    if (textDisplay.offsetHeight <= available) return;
+
+    // Binary search for largest fitting size
+    var lo = minPx, hi = maxPx;
+    while (hi - lo > 1) {
+      var mid = (lo + hi) / 2 | 0;
+      textDisplay.style.fontSize = mid + 'px';
+      if (textDisplay.offsetHeight <= available) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+
+    textDisplay.style.fontSize = lo + 'px';
+  }
 
   // ── Render ──
   function render() {
-    const text = pages[currentPage] || '';
+    var text = pages[currentPage] || '';
 
     // Build letter spans, preserving newlines
-    let html = '';
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
+    var html = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
       if (ch === '\n') {
         html += '<br>';
       } else if (ch === ' ') {
@@ -290,6 +547,9 @@
     textDisplay.appendChild(cursor);
     textDisplay.style.color = currentColor;
 
+    // Auto-fit text size
+    autoFitText();
+
     // Nav
     btnPrev.disabled = currentPage === 0;
     btnNext.disabled = currentPage >= pages.length - 1;
@@ -302,7 +562,7 @@
   // ── Color bar ──
   function buildColorBar() {
     COLORS.forEach(function (c) {
-      const dot = document.createElement('div');
+      var dot = document.createElement('div');
       dot.className = 'color-dot';
       dot.style.background = c.hex;
       if (c.hex === currentColor) dot.classList.add('selected');
@@ -320,13 +580,24 @@
   }
 
   // ── Speech ──
-  let ptVoice = null;
+  var ptVoice = null;
 
   function pickVoice() {
     var voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+
+    // If user selected a specific voice, use it
+    if (selectedVoiceName) {
+      for (var i = 0; i < voices.length; i++) {
+        if (voices[i].name === selectedVoiceName) {
+          ptVoice = voices[i];
+          return;
+        }
+      }
+    }
+
     // Prefer "Google português do Brasil" specifically
     for (var i = 0; i < voices.length; i++) {
-      if (voices[i].name === 'Google português do Brasil') {
+      if (voices[i].name === 'Google portugu\u00eas do Brasil') {
         ptVoice = voices[i];
         return;
       }
@@ -360,8 +631,6 @@
     if (!text || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     pickVoice();
-    // Send as lowercase so TTS reads phonetically (e.g. "to" not "Tocantins")
-    // Then apply pronunciation overrides for syllables the engine gets wrong.
     var u = new SpeechSynthesisUtterance(fixPronunciation(text.toLowerCase()));
     u.lang = 'pt-BR';
     if (ptVoice) u.voice = ptVoice;
@@ -371,14 +640,14 @@
   }
 
   // ── Sound effect (ascending chime) ──
-  function playChime(index, total) {
+  function playChime(index) {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const baseFreq = 523.25; // C5
-      const freq = baseFreq * Math.pow(2, (index * 2) / 12); // go up in whole tones
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var baseFreq = 523.25; // C5
+      var freq = baseFreq * Math.pow(2, (index * 2) / 12);
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
 
@@ -390,35 +659,32 @@
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.25);
 
-      // Clean up
       osc.onended = function () { ctx.close(); };
     } catch (e) {
-      // Audio not supported, no problem
+      // Audio not supported
     }
   }
 
   // ── Word completion animation ──
   function animateWordCompletion() {
-    const text = pages[currentPage] || '';
-    // Find the last word (before trailing space/newline)
-    const trimmed = text.replace(/[\s]+$/, '');
-    const lastBreak = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
-    const wordStart = lastBreak + 1;
-    const wordLen = trimmed.length - wordStart;
+    var text = pages[currentPage] || '';
+    var trimmed = text.replace(/[\s]+$/, '');
+    var lastBreak = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
+    var wordStart = lastBreak + 1;
+    var wordLen = trimmed.length - wordStart;
 
     if (wordLen === 0) return;
 
-    // Get all letter spans
-    const letters = textDisplay.querySelectorAll('.letter');
-    let letterSpans = [];
-    for (let i = letters.length - wordLen; i < letters.length; i++) {
+    var letters = textDisplay.querySelectorAll('.letter');
+    var letterSpans = [];
+    for (var i = letters.length - wordLen; i < letters.length; i++) {
       if (letters[i]) letterSpans.push(letters[i]);
     }
 
     letterSpans.forEach(function (span, i) {
       setTimeout(function () {
         span.classList.add('blink');
-        playChime(i, letterSpans.length);
+        playChime(i);
         span.addEventListener('animationend', function () {
           span.classList.remove('blink');
         }, { once: true });
@@ -430,43 +696,35 @@
   function getCurrentWord() {
     var text = pages[currentPage] || '';
     if (!text) return '';
-    // Find last space or newline
     var lastBreak = Math.max(text.lastIndexOf(' '), text.lastIndexOf('\n'));
     return text.substring(lastBreak + 1);
   }
 
   // ── Typing logic ──
   function handleChar(ch) {
-    const upper = ch.toUpperCase();
+    var upper = ch.toUpperCase();
     pages[currentPage] = (pages[currentPage] || '') + upper;
     saveState();
     render();
-    // Speak only the current word being typed
     var word = getCurrentWord();
     if (word) speak(word);
   }
 
-  function handleSpace() {
-    const text = pages[currentPage] || '';
-    // Don't add space if empty or already ends with whitespace
-    if (!text || text.endsWith(' ') || text.endsWith('\n')) return;
+  function handleEnter() {
+    var text = pages[currentPage] || '';
+    if (!text || text.endsWith('\n')) return;
 
-    // Speak the completed word
     var word = getCurrentWord();
     if (word) speak(word);
 
-    // Trigger animation on the just-completed word before adding space
-    animateWordCompletion();
-
-    pages[currentPage] = text + ' ';
+    pages[currentPage] = text + '\n';
     saveState();
     render();
-    // Re-trigger animation after render (since render rebuilds DOM)
     animateWordCompletion();
   }
 
   function handleBackspace() {
-    const text = pages[currentPage] || '';
+    var text = pages[currentPage] || '';
     if (text.length === 0) return;
     pages[currentPage] = text.slice(0, -1);
     saveState();
@@ -475,35 +733,15 @@
     if (word) speak(word);
   }
 
-  function handleEnter() {
-    const text = pages[currentPage] || '';
-    // Speak last word if any
-    var word = getCurrentWord();
-    if (word) speak(word);
-
-    // Animate last word if there's text
-    if (text.replace(/\s/g, '')) {
-      animateWordCompletion();
-    }
-
-    // Add newline to current page
-    pages[currentPage] = (pages[currentPage] || '') + '\n';
-    saveState();
-    render();
-  }
-
   // ── Keyboard handling ──
-  // All input goes through the hidden input element so that dead key
-  // composition (ã, é, ç, ô, etc.) works natively via the browser's IME.
   var composing = false;
 
   hiddenInput.addEventListener('compositionstart', function () {
     composing = true;
   });
 
-  hiddenInput.addEventListener('compositionend', function (e) {
+  hiddenInput.addEventListener('compositionend', function () {
     composing = false;
-    // Process the composed result
     var val = hiddenInput.value;
     hiddenInput.value = '';
     if (val) {
@@ -520,18 +758,13 @@
     if (e.key === 'Backspace') {
       e.preventDefault();
       handleBackspace();
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleEnter();
-    } else if (e.key === ' ') {
-      e.preventDefault();
-      handleSpace();
     }
-    // Other keys: let them through to trigger input event (or start composition)
   });
 
-  hiddenInput.addEventListener('input', function (e) {
-    // Skip if we're in the middle of a dead key composition
+  hiddenInput.addEventListener('input', function () {
     if (composing) return;
 
     var val = hiddenInput.value;
@@ -540,23 +773,22 @@
 
     for (var i = 0; i < val.length; i++) {
       var ch = val[i];
-      if (ch === '\n') {
+      if (ch === '\n' || ch === ' ') {
         handleEnter();
-      } else if (ch === ' ') {
-        handleSpace();
       } else {
         handleChar(ch);
       }
     }
   });
 
-  // Keep input focused so all keystrokes go to it
+  // Keep input focused
   function focusInput() {
     hiddenInput.focus({ preventScroll: true });
   }
 
-  // Redirect any stray keystrokes to the hidden input
-  document.addEventListener('keydown', function (e) {
+  // Redirect stray keystrokes (but not when settings is open)
+  document.addEventListener('keydown', function () {
+    if (!settingsOverlay.classList.contains('hidden')) return;
     if (document.activeElement !== hiddenInput) {
       focusInput();
     }
@@ -566,6 +798,173 @@
   writingArea.addEventListener('touchend', function (e) {
     e.preventDefault();
     focusInput();
+  });
+
+  // ── Settings panel ──
+  var settingsOverlay = document.getElementById('settings-overlay');
+  var voiceSelect = document.getElementById('voice-select');
+  var dictList = document.getElementById('dict-list');
+  var dictWordInput = document.getElementById('dict-word');
+  var dictPronInput = document.getElementById('dict-pron');
+
+  function openSettings() {
+    populateVoiceSelect();
+    renderDictList();
+    settingsOverlay.classList.remove('hidden');
+  }
+
+  function closeSettings() {
+    settingsOverlay.classList.add('hidden');
+    focusInput();
+  }
+
+  function populateVoiceSelect() {
+    voiceSelect.innerHTML = '';
+    var auto = document.createElement('option');
+    auto.value = '';
+    auto.textContent = 'Autom\u00e1tico';
+    voiceSelect.appendChild(auto);
+
+    var voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+    var ptVoices = [];
+    var otherVoices = [];
+
+    for (var i = 0; i < voices.length; i++) {
+      var lang = (voices[i].lang || '').replace('_', '-');
+      if (lang.indexOf('pt') === 0) {
+        ptVoices.push(voices[i]);
+      } else {
+        otherVoices.push(voices[i]);
+      }
+    }
+
+    if (ptVoices.length) {
+      var group = document.createElement('optgroup');
+      group.label = 'Portugu\u00eas';
+      for (var i = 0; i < ptVoices.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = ptVoices[i].name;
+        opt.textContent = ptVoices[i].name;
+        if (ptVoices[i].name === selectedVoiceName) opt.selected = true;
+        group.appendChild(opt);
+      }
+      voiceSelect.appendChild(group);
+    }
+
+    if (otherVoices.length) {
+      var group = document.createElement('optgroup');
+      group.label = 'Outras';
+      for (var i = 0; i < otherVoices.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = otherVoices[i].name;
+        opt.textContent = otherVoices[i].name;
+        if (otherVoices[i].name === selectedVoiceName) opt.selected = true;
+        group.appendChild(opt);
+      }
+      voiceSelect.appendChild(group);
+    }
+  }
+
+  function renderDictList() {
+    dictList.innerHTML = '';
+    var keys = Object.keys(ttsWordFixes);
+    if (keys.length === 0) {
+      dictList.innerHTML = '<div class="dict-empty">Nenhuma entrada</div>';
+      return;
+    }
+    keys.forEach(function (word) {
+      var entry = document.createElement('div');
+      entry.className = 'dict-entry';
+
+      var wordSpan = document.createElement('span');
+      wordSpan.className = 'dict-word';
+      wordSpan.textContent = word;
+
+      var arrow = document.createElement('span');
+      arrow.className = 'dict-arrow';
+      arrow.textContent = '\u2192';
+
+      var pronSpan = document.createElement('span');
+      pronSpan.className = 'dict-pron';
+      pronSpan.textContent = ttsWordFixes[word];
+
+      var delBtn = document.createElement('button');
+      delBtn.textContent = '\u2715';
+      delBtn.setAttribute('aria-label', 'Remover');
+      delBtn.addEventListener('click', function () {
+        delete ttsWordFixes[word];
+        saveState();
+        renderDictList();
+      });
+
+      entry.appendChild(wordSpan);
+      entry.appendChild(arrow);
+      entry.appendChild(pronSpan);
+      entry.appendChild(delBtn);
+      dictList.appendChild(entry);
+    });
+  }
+
+  function addDictEntry() {
+    var word = dictWordInput.value.trim().toLowerCase();
+    var pron = dictPronInput.value.trim();
+    if (word && pron) {
+      ttsWordFixes[word] = pron;
+      saveState();
+      renderDictList();
+      dictWordInput.value = '';
+      dictPronInput.value = '';
+      dictWordInput.focus();
+    }
+  }
+
+  document.getElementById('btn-settings').addEventListener('click', function (e) {
+    e.stopPropagation();
+    openSettings();
+  });
+
+  document.getElementById('settings-close').addEventListener('click', closeSettings);
+
+  settingsOverlay.addEventListener('click', function (e) {
+    if (e.target === settingsOverlay) closeSettings();
+  });
+
+  voiceSelect.addEventListener('change', function () {
+    selectedVoiceName = voiceSelect.value || null;
+    pickVoice();
+    saveState();
+    speak('teste');
+  });
+
+  document.getElementById('dict-add-btn').addEventListener('click', addDictEntry);
+
+  dictWordInput.addEventListener('keydown', function (e) {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); addDictEntry(); }
+  });
+  dictPronInput.addEventListener('keydown', function (e) {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); addDictEntry(); }
+  });
+  // Stop all keydowns inside settings from reaching the document handler
+  document.getElementById('settings-panel').addEventListener('keydown', function (e) {
+    e.stopPropagation();
+  });
+
+  document.getElementById('settings-reset').addEventListener('click', function () {
+    if (!confirm('Restaurar todas as configura\u00e7\u00f5es para os valores padr\u00e3o?')) return;
+    ttsWordFixes = copyObj(DEFAULT_TTS_WORD_FIXES);
+    selectedVoiceName = null;
+    currentColor = COLORS[7].hex;
+    saveState();
+    // Refresh settings UI
+    populateVoiceSelect();
+    renderDictList();
+    // Refresh main UI
+    document.querySelectorAll('.color-dot').forEach(function (d, i) {
+      d.classList.toggle('selected', COLORS[i].hex === currentColor);
+    });
+    render();
   });
 
   // ── Navigation ──
@@ -598,12 +997,16 @@
     focusInput();
   });
 
+  // ── Resize handler ──
+  window.addEventListener('resize', function () {
+    autoFitText();
+  });
+
   // ── Init ──
   loadState();
   buildColorBar();
   render();
 
-  // Auto-focus after a moment (helps on mobile)
   setTimeout(focusInput, 300);
 })();
 </script>
